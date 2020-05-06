@@ -10,23 +10,32 @@
       ./hardware-configuration.nix
     ];
 
-  # Use the GRUB 2 boot loader.
-  boot.loader.grub.enable = true;
-  boot.loader.grub.version = 2;
-
-  # Define on which hard drive you want to install Grub.
-  boot.loader.grub.device = "/dev/sda";
-  boot.initrd.checkJournalingFS = false;
-  boot.initrd.kernelModules = ["hv_vmbus" "hv_storvsc"]; # https://github.com/NixOS/nix/issues/9899
-  boot.kernel.sysctl."vm.overcommit_memory" = "1"; # https://github.com/NixOS/nix/issues/421
-
-  networking.hostName = "nixos"; # Define your hostname.
+  boot = {
+    # Use the GRUB 2 boot loader.
+    loader.grub = {
+      enable = true;
+      version = 2;
+      device = "/dev/sda";
+    };
+    initrd = {
+      checkJournalingFS = false;
+      kernelModules = ["hv_vmbus" "hv_storvsc"]; # https://github.com/NixOS/nix/issues/9899
+    };
+    kernel.sysctl = {
+      "vm.overcommit_memory" = "1"; # https://github.com/NixOS/nix/issues/421
+      "fs.inotify.max_user_watches" = "1048576";
+    };
+  };
 
   # The global useDHCP flag is deprecated, therefore explicitly set to false here.
   # Per-interface useDHCP will be mandatory in the future, so this generated config
   # replicates the default behaviour.
-  networking.useDHCP = false;
-  networking.interfaces.eth0.useDHCP = true;
+  networking = {
+    hostName = "nixos";
+    useDHCP = false;
+    interfaces.eth0.useDHCP = true;
+    firewall.enable = false;
+  };
 
   # Select internationalisation properties.
   i18n.defaultLocale = "en_GB.UTF-8";
@@ -41,9 +50,6 @@
   # List packages installed in system profile. To search, run:
   # $ nix search wget
   environment.systemPackages = with pkgs; [
-
-    # Shell
-    fish
 
     # CLI Tools
     curl
@@ -60,37 +66,34 @@
 
     # Languages
     jdk11
-    nodejs yarn
+    nodejs-12_x yarn
     python poetry
+
+    # Nix
+    direnv
+    niv
 
   ];
 
   # Some programs need SUID wrappers, can be configured further or are
   # started in user sessions.
   programs.mtr.enable = true;
-  programs.gnupg.agent = {
-    enable = true;
-    enableSSHSupport = true;
-    pinentryFlavor = "gnome3";
-  };
+
+  # Enable Docker support
   virtualisation.docker.enable = true;
+  environment.variables.DOCKER_BUILDKIT = "1";
+  environment.variables.COMPOSE_DOCKER_CLI_BUILD = "1";
 
-  # List services that you want to enable:
-
-  # Enable the OpenSSH daemon.
+  # Enable the OpenSSH daemon
+  services.sshd.enable = true;
   services.openssh.enable = true;
   services.openssh.passwordAuthentication = true;
+  services.openssh.permitRootLogin = "no";
 
-  # Open ports in the firewall.
-  # networking.firewall.allowedTCPPorts = [ ... ];
-  # networking.firewall.allowedUDPPorts = [ ... ];
-  # Or disable the firewall altogether.
-  # networking.firewall.enable = false;
+  services.lorri.enable = true;
 
-  # Enable the X11 windowing system.
-  # services.xserver.enable = true;
-  # services.xserver.layout = "us";
-  # services.xserver.xkbOptions = "eurosign:e";
+  # Enable fish
+  programs.fish.enable = true;
 
   # Define a user account. Don't forget to set a password with ‘passwd’.
   users.users.andrejus = {
